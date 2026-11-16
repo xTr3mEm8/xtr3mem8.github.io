@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Interaction System | Cris Malus</title>
+<meta name="description" content="A drop-in C++ interaction component: camera line trace plus an interface, so any actor can become interactable without the player knowing its type.">
+<meta property="og:title" content="Interaction System | Cris Malus">
+<meta property="og:description" content="A drop-in C++ interaction component: camera line trace plus an interface, so any actor can become interactable without the player knowing its type.">
+<meta name="theme-color" content="#0c0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="pip"></span>Cris Malus</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="navlist">Menu</button>
+    <ul id="navlist">
+      <li><a class="link" href="../index.html#projects">Projects</a></li>
+      <li><a class="link" href="../index.html#about">About</a></li>
+      <li><a class="link" href="../index.html#contact">Contact</a></li>
+      <li><a class="link cv" href="../files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+    </ul>
+  </div>
+</header>
+<main>
+
+<div class="p-hero">
+  <div class="wrap">
+    <a class="back" href="../index.html#projects">← Back to projects</a>
+    <h1>Interaction System</h1>
+    <p class="lead">A small, reusable interaction framework for Unreal projects. The player owns one component; anything in the world becomes interactable by implementing a single interface. It was built by following a tutorial and then kept as the base for my later projects.</p>
+    <dl class="specs"><div><dt>Type</dt><dd>Tutorial project</dd></div><div><dt>Engine</dt><dd>Unreal Engine 5</dd></div><div><dt>Language</dt><dd>C++ & Blueprints</dd></div><div><dt>Role</dt><dd>Gameplay programmer</dd></div></dl>
+    
+  </div>
+</div>
+<div class="wrap">
+<section class="feature-block reveal"><div class="top"><div><span class="idx">01</span><h2>Trace + interface</h2><p><code>UInteractionComponent</code> traces from the owner's eye viewpoint along the camera direction. If it hits an actor implementing <code>IObjectInterface</code>, it calls <code>Interact()</code> on it. The player never casts to concrete types, so doors, pickups and levers all work without changes to the player.</p><p>The trace distance and a debug-line toggle are exposed as properties, which makes it easy to tune per project.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/interact.jpg" aria-label="Trace + interface in action"><source src="../media/interact.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><details class="code"><summary><span class="file">InteractionComponent.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Components/InteractionComponent.h&quot;
+#include &quot;Interfaces/ObjectInterface.h&quot;
+#include &quot;GameFramework/Actor.h&quot;
+#include &quot;Engine/World.h&quot;
+#include &quot;DrawDebugHelpers.h&quot;
+
+UInteractionComponent::UInteractionComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UInteractionComponent::BeginPlay()
+{
+    Super::BeginPlay();
+}
+
+void UInteractionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UInteractionComponent::Interact()
+{
+    AActor* InteractableActor = GetInteractableActor();
+    if (InteractableActor &amp;&amp; InteractableActor-&gt;Implements&lt;UObjectInterface&gt;())
+    {
+        IObjectInterface* Interface = Cast&lt;IObjectInterface&gt;(InteractableActor);
+        if (Interface)
+        {
+            Interface-&gt;Interact();
+        }
+    }
+}
+
+AActor* UInteractionComponent::GetInteractableActor() const
+{
+    AActor* Owner = GetOwner();
+    if (!Owner) return nullptr;
+
+    FVector Start;
+    FRotator CameraRotation;
+    GetOwner()-&gt;GetActorEyesViewPoint(Start, CameraRotation);
+    FVector End = Start + (CameraRotation.Vector() * InteractionDistance);
+
+    FHitResult HitResult;
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(GetOwner());
+
+    if (DrawLine)
+    {
+        DrawDebugLine(GetWorld(), Start, End, FColor::Red, false, 2000.0f);
+    }
+
+    if (GetWorld()-&gt;LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params))
+    {
+        if (HitResult.GetActor() &amp;&amp; HitResult.GetActor()-&gt;Implements&lt;UObjectInterface&gt;())
+        {
+            return HitResult.GetActor();
+        }
+    }
+
+    return nullptr;
+}</code></pre></details></section>
+<div class="lessons reveal"><h2>What I learned</h2><p>Interfaces are what make this reusable: the component only knows about the contract, not the objects. That idea carried straight into the Souls-like, where enemies, the player and the lock-on system all communicate through interfaces.</p></div>
+<div class="next"><a class="btn ghost" href="souls-like.html">← Souls-like Prototype</a><a class="btn" href="island-survival.html">Island Survival →</a></div></div></main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Malus Cristian Ionut</span>
+    <span><a href="mailto:cristianmaluswork1@gmail.com">cristianmaluswork1@gmail.com</a> · <a href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</footer>
+<script src="../main.js"></script>
+</body>
+</html>

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Souls-like Prototype | Cris Malus</title>
+<meta name="description" content="Third-person melee combat in UE5: lock-on, stamina-gated blocking, combo attacks and behaviour-tree enemies. Core systems written as C++ components.">
+<meta property="og:title" content="Souls-like Prototype | Cris Malus">
+<meta property="og:description" content="Third-person melee combat in UE5: lock-on, stamina-gated blocking, combo attacks and behaviour-tree enemies. Core systems written as C++ components.">
+<meta name="theme-color" content="#0c0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="pip"></span>Cris Malus</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="navlist">Menu</button>
+    <ul id="navlist">
+      <li><a class="link" href="../index.html#projects">Projects</a></li>
+      <li><a class="link" href="../index.html#about">About</a></li>
+      <li><a class="link" href="../index.html#contact">Contact</a></li>
+      <li><a class="link cv" href="../files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+    </ul>
+  </div>
+</header>
+<main>
+
+<div class="p-hero">
+  <div class="wrap">
+    <a class="back" href="../index.html#projects">← Back to projects</a>
+    <h1>Souls-like Prototype</h1>
+    <p class="lead">A Souls-like combat prototype built to learn how weighty melee combat is put together: stamina, blocking, lock-on targeting and enemies that react to the player. Gameplay systems are C++ actor components exposed to Blueprints for tuning.</p>
+    <dl class="specs"><div><dt>Type</dt><dd>Personal project</dd></div><div><dt>Engine</dt><dd>Unreal Engine 5</dd></div><div><dt>Language</dt><dd>C++ & Blueprints</dd></div><div><dt>Role</dt><dd>Gameplay programmer (solo)</dd></div></dl>
+    <div class="trailer"><iframe src="https://www.youtube-nocookie.com/embed/Cb_jME8RBUE" title="Souls-like Prototype gameplay video" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+  </div>
+</div>
+<div class="wrap">
+<section class="feature-block reveal"><div class="top"><div><span class="idx">01</span><h2>Combat system</h2><p>Attacks, combo chaining and stamina costs live in a reusable <code>UCombatComponent</code>. Each swing plays the next montage in the combo, wraps the counter at the end of the chain and broadcasts the stamina cost through a delegate, so the stats component never needs to know who attacked.</p><p>The same component drives enemies through <code>RandomAttack()</code>, which returns the montage length so AI tasks know when the attack is finished.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/souls-combat.jpg" aria-label="Combat system in action"><source src="../media/souls-combat.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/combat.jpg"><img src="../media/combat.jpg" alt="Combat Blueprint" loading="lazy"></a></div><details class="code"><summary><span class="file">CombatComponent.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Combat/CombatComponent.h&quot;
+#include &quot;GameFramework/Character.h&quot; 
+#include &quot;Kismet/KismetMathLibrary.h&quot;
+#include &quot;Interfaces/MainPlayer.h&quot;
+
+// Sets default values for this component&#x27;s properties
+UCombatComponent::UCombatComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+// Called when the game starts
+void UCombatComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    CharacterRef = GetOwner&lt;ACharacter&gt;();
+}
+
+// Called every frame
+void UCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UCombatComponent::ComboAttack()
+{
+    if (CharacterRef-&gt;Implements&lt;UMainPlayer&gt;())
+    {
+        IMainPlayer* IPlayerRef = Cast&lt;IMainPlayer&gt;(CharacterRef);
+        if (IPlayerRef &amp;&amp; !IPlayerRef-&gt;HasEnoughStamina(StaminaCost))
+        {
+            return;
+        }
+    }
+
+    if (!bCanAttack) return;
+
+    bCanAttack = false;
+    CharacterRef-&gt;PlayAnimMontage(AttackAnimations[ComboCounter]);
+
+    ComboCounter++;
+
+    int MaxCombo = AttackAnimations.Num();
+    ComboCounter = UKismetMathLibrary::Wrap(ComboCounter, -1, MaxCombo - 1);
+
+    OnAttackPerformedDelegate.Broadcast(StaminaCost);
+}
+
+void UCombatComponent::HandleResetAttack()
+{
+    bCanAttack = true;
+}
+
+void UCombatComponent::RandomAttack()
+{
+    int RandomIndex = FMath::RandRange(0, AttackAnimations.Num() - 1);
+    AnimDuration = CharacterRef-&gt;PlayAnimMontage(AttackAnimations[RandomIndex]);
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">02</span><h2>Lock-on targeting</h2><p>A sphere sweep on a custom trace channel finds the nearest target that implements the <code>IEnemy</code> interface. While locked, the component switches the movement component to controller-desired rotation, offsets the spring arm, and steers the control rotation towards the target every tick.</p><p>Lock breaks automatically past a break distance, and targets are notified through interface events so they can show or hide their own lock-on marker.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/souls-lockon.jpg" aria-label="Lock-on targeting in action"><source src="../media/souls-lockon.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/lockon.jpg"><img src="../media/lockon.jpg" alt="Lock-on Blueprint" loading="lazy"></a></div><details class="code"><summary><span class="file">LockOnComponent.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Combat/LockOnComponent.h&quot;
+#include &quot;GameFramework/Character.h&quot;
+#include &quot;GameFramework/CharacterMovementComponent.h&quot;
+#include &quot;Kismet/KismetMathLibrary.h&quot;
+#include &quot;GameFramework/SpringArmComponent.h&quot;
+#include &quot;Interfaces/Enemy.h&quot;
+
+// Sets default values for this component&#x27;s properties
+ULockOnComponent::ULockOnComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+// Called when the game starts
+void ULockOnComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    OwnerRef = GetOwner&lt;ACharacter&gt;();
+    Controller = GetWorld()-&gt;GetFirstPlayerController();
+    MovementComp = OwnerRef-&gt;GetCharacterMovement();
+    SpringArmComp = OwnerRef-&gt;FindComponentByClass&lt;USpringArmComponent&gt;();
+}
+
+void ULockOnComponent::StartLockOn(float Radius)
+{
+    FHitResult OutResult;
+    FVector CurrentLocation { OwnerRef-&gt;GetActorLocation() };
+    FCollisionShape Sphere{ FCollisionShape::MakeSphere(Radius) };
+    FCollisionQueryParams IgnoreParams{
+        FName{ TEXT(&quot;Ignore Collision Params&quot;) }, false, OwnerRef
+    };
+
+    bool bHasFoundTarget = GetWorld()-&gt;SweepSingleByChannel(
+        OutResult,
+        CurrentLocation,
+        CurrentLocation,
+        FQuat::Identity,
+        ECC_GameTraceChannel1,
+        Sphere,
+        IgnoreParams
+    );
+
+    if (!bHasFoundTarget || !OutResult.GetActor()-&gt;Implements&lt;UEnemy&gt;()) return;
+
+    CurrentTargetActor = OutResult.GetActor();
+
+    Controller-&gt;SetIgnoreLookInput(true);
+    MovementComp-&gt;bOrientRotationToMovement = false;
+    MovementComp-&gt;bUseControllerDesiredRotation = true;
+    SpringArmComp-&gt;TargetOffset = FVector{ 0.0, 0.0, 100.0 };
+
+    IEnemy::Execute_OnSelect(CurrentTargetActor);
+    OnUpdatedTargetDelegate.Broadcast(CurrentTargetActor);
+}
+
+void ULockOnComponent::EndLockOn()
+{
+    IEnemy::Execute_OnDeselect(CurrentTargetActor);
+    CurrentTargetActor = nullptr;
+    MovementComp-&gt;bOrientRotationToMovement = true;
+    MovementComp-&gt;bUseControllerDesiredRotation = false;
+    SpringArmComp-&gt;TargetOffset = FVector{ 0.0, 0.0, 0.0 };
+    Controller-&gt;ResetIgnoreLookInput();
+    OnUpdatedTargetDelegate.Broadcast(CurrentTargetActor);
+}
+
+void ULockOnComponent::ToggleLockOn(float Radius)
+{
+    if (IsValid(CurrentTargetActor)) EndLockOn();
+    else StartLockOn(Radius);
+}
+
+// Called every frame
+void ULockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    if (!IsValid(CurrentTargetActor)) return;
+
+    FVector CurrentLocation = OwnerRef-&gt;GetActorLocation();
+    FVector TargetLocation = CurrentTargetActor-&gt;GetActorLocation();
+    double TargetDistance = FVector::Distance(CurrentLocation, TargetLocation);
+
+    if (TargetDistance &gt;= BreakDistance)
+    {
+        EndLockOn();
+        return;
+    }
+
+    TargetLocation.Z -= 125;
+
+    FRotator NewRotation = UKismetMathLibrary::FindLookAtRotation(CurrentLocation, TargetLocation);
+    Controller-&gt;SetControlRotation(NewRotation);
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">03</span><h2>Stamina-gated blocking</h2><p>Blocking uses a dot product between the attacker's and the player's forward vectors, so only hits from the front are blocked. A successful block plays a montage and broadcasts its stamina cost; hits from behind, or blocking without enough stamina, go through.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/souls-block.jpg" aria-label="Stamina-gated blocking in action"><source src="../media/souls-block.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/blockcomp.jpg"><img src="../media/blockcomp.jpg" alt="Block Blueprint" loading="lazy"></a></div><details class="code"><summary><span class="file">BlockComponent.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Combat/BlockComponent.h&quot;
+#include &quot;GameFramework/Character.h&quot;
+#include &quot;Interfaces/MainPlayer.h&quot;
+
+// Sets default values for this component&#x27;s properties
+UBlockComponent::UBlockComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+// Called when the game starts
+void UBlockComponent::BeginPlay()
+{
+    Super::BeginPlay();
+}
+
+// Called every frame
+void UBlockComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+bool UBlockComponent::Check(AActor* Opponent)
+{
+    ACharacter* CharacterRef{ GetOwner&lt;ACharacter&gt;() };
+
+    if (!CharacterRef-&gt;Implements&lt;UMainPlayer&gt;()) { return true; }
+
+    IMainPlayer* PlayerRef{ Cast&lt;IMainPlayer&gt;(CharacterRef) };
+
+    FVector OpponentForward{ Opponent-&gt;GetActorForwardVector() };
+    FVector PlayerForward{ CharacterRef-&gt;GetActorForwardVector() };
+
+    double Result{ FVector::DotProduct(OpponentForward, PlayerForward) };
+
+    if (Result &gt; 0 || !PlayerRef-&gt;HasEnoughStamina(StaminaCost))
+    {
+        return true;
+    }
+
+    CharacterRef-&gt;PlayAnimMontage(BlockAnimMontage);
+
+    OnBlockDelegate.Broadcast(StaminaCost);
+    return false;
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">04</span><h2>Health & stamina</h2><p>Stats are looked up by an <code>EStat</code> enum (health, max health, stamina, max stamina). Damage and stamina changes clamp the value and broadcast a percentage, which the HUD bars bind to. Spending stamina blocks regeneration behind a retriggerable delay, so regen only starts once the player stops acting.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/souls-stats.jpg" aria-label="Health & stamina in action"><source src="../media/souls-stats.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/stats.jpg"><img src="../media/stats.jpg" alt="Stats widgets" loading="lazy"></a></div><details class="code"><summary><span class="file">CharacterStatsComponent.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Characters/CharacterStatsComponent.h&quot;
+#include &quot;Kismet/KismetMathLibrary.h&quot;
+#include &quot;Kismet/KismetSystemLibrary.h&quot;
+#include &quot;Interfaces/Fighter.h&quot;
+
+UCharacterStatsComponent::UCharacterStatsComponent()
+{
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UCharacterStatsComponent::BeginPlay()
+{
+    Super::BeginPlay();
+}
+
+void UCharacterStatsComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+}
+
+void UCharacterStatsComponent::ReduceHealth(float Amount, AActor* Opponent)
+{
+    if (Stats[EStat::Health] &lt;= 0) return;
+
+    IFighter* FighterRef = GetOwner&lt;IFighter&gt;();
+    if (!FighterRef-&gt;CanTakeDamage(Opponent)) return;
+
+    Stats[EStat::Health] -= Amount;
+    Stats[EStat::Health] = UKismetMathLibrary::FClamp(
+        Stats[EStat::Health],
+        0,
+        Stats[EStat::MaxHealth]
+    );
+
+    OnHealthPercentUpdateDelegate.Broadcast(
+        GetStatPercentage(EStat::Health, EStat::MaxHealth)
+    );
+
+    if (Stats[EStat::Health] == 0)
+        OnZeroHealthDelegate.Broadcast();
+}
+
+void UCharacterStatsComponent::ReduceStamina(float Amount)
+{
+    Stats[EStat::Stamina] -= Amount;
+    Stats[EStat::Stamina] = UKismetMathLibrary::FClamp(
+        Stats[EStat::Stamina],
+        0,
+        Stats[EStat::MaxStamina]
+    );
+
+    bCanRegen = false;
+
+    FLatentActionInfo FunctionInfo{ 0, 100, TEXT(&quot;EnableRegen&quot;), this };
+    UKismetSystemLibrary::RetriggerableDelay(
+        GetWorld(),
+        StaminaDelayDuration,
+        FunctionInfo
+    );
+
+    OnStaminaPercentUpdateDelegate.Broadcast(
+        GetStatPercentage(EStat::Stamina, EStat::MaxStamina)
+    );
+}
+
+void UCharacterStatsComponent::RegenStamina()
+{
+    if (!bCanRegen) return;
+
+    Stats[EStat::Stamina] = UKismetMathLibrary::FInterpTo_Constant(
+        Stats[EStat::Stamina],
+        Stats[EStat::MaxStamina],
+        GetWorld()-&gt;DeltaRealTimeSeconds,
+        StaminaRegenState
+    );
+
+    OnStaminaPercentUpdateDelegate.Broadcast(
+        GetStatPercentage(EStat::Stamina, EStat::MaxStamina)
+    );
+}
+
+void UCharacterStatsComponent::EnableRegen()
+{
+    bCanRegen = true;
+}
+
+float UCharacterStatsComponent::GetStatPercentage(EStat Current, EStat Max)
+{
+    return Stats[Current] / Stats[Max];
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">05</span><h2>Enemy AI</h2><p>Enemies run a behaviour tree backed by a state machine: patrol, chase, attack. A custom C++ behaviour tree service writes the distance to the player into the blackboard every tick, and the tree's decorators use that value to choose between chasing and attacking.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/souls-ai.jpg" aria-label="Enemy AI in action"><source src="../media/souls-ai.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/behaviour-tree.jpg"><img src="../media/behaviour-tree.jpg" alt="Behaviour tree" loading="lazy"></a></div><details class="code"><summary><span class="file">BTS_PlayerDistance.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">#include &quot;Characters/BTS_PlayerDistance.h&quot;
+#include &quot;AIController.h&quot;
+#include &quot;BehaviorTree/BlackboardComponent.h&quot;
+
+void UBTS_PlayerDistance::TickNode(UBehaviorTreeComponent&amp; OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+{
+    FVector CurrentLocation{
+        OwnerComp.GetAIOwner()-&gt;GetPawn()-&gt;GetActorLocation()
+    };
+
+    FVector PlayerLocation{
+        GetWorld()-&gt;GetFirstPlayerController()
+            -&gt;GetPawn()
+            -&gt;GetActorLocation()
+    };
+
+    float Distance{
+        static_cast&lt;float&gt;(
+            FVector::Distance(CurrentLocation, PlayerLocation)
+        )
+    };
+
+    OwnerComp.GetBlackboardComponent()
+        -&gt;SetValueAsFloat(TEXT(&quot;Distance&quot;), Distance);
+}</code></pre></details></section>
+<div class="lessons reveal"><h2>What I learned</h2><p>Splitting combat into small components (combat, block, lock-on, stats) that talk through delegates and interfaces kept each piece testable on its own and let the same code drive both the player and the enemies. It also showed me where Blueprints are the right tool (tuning, montages, UI) and where C++ is (anything that runs every frame or is shared).</p></div>
+<div class="next"><span></span><a class="btn" href="interaction-system.html">Interaction System →</a></div></div></main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Malus Cristian Ionut</span>
+    <span><a href="mailto:cristianmaluswork1@gmail.com">cristianmaluswork1@gmail.com</a> · <a href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</footer>
+<script src="../main.js"></script>
+</body>
+</html>

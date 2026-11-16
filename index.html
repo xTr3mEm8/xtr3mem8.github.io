@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cris Malus | Gameplay Programmer</title>
+<meta name="description" content="Cris Malus: gameplay programmer working in C++ and Unreal Engine. Combat, AI and gameplay systems. Studying Creative Media & Game Technologies at BUas, Breda.">
+<meta property="og:title" content="Cris Malus | Gameplay Programmer">
+<meta property="og:description" content="Cris Malus: gameplay programmer working in C++ and Unreal Engine. Combat, AI and gameplay systems. Studying Creative Media & Game Technologies at BUas, Breda.">
+<meta name="theme-color" content="#0c0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="home">
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="pip"></span>Cris Malus</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="navlist">Menu</button>
+    <ul id="navlist">
+      <li><a class="link" href="#projects">Projects</a></li>
+      <li><a class="link" href="#about">About</a></li>
+      <li><a class="link" href="#contact">Contact</a></li>
+      <li><a class="link cv" href="files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+    </ul>
+  </div>
+</header>
+<main>
+<section class="hero" aria-label="Intro">
+  <div class="hero-bg"><video autoplay muted loop playsinline poster="media/souls-combat.jpg"><source src="media/souls-combat.mp4" type="video/mp4"></video></div>
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Player 1 · Breda, NL</span>
+      <h1>Cris<br><span class="out">Malus</span></h1>
+      <div class="role"><span>Gameplay Programmer · C++ · Unreal</span></div>
+      <p class="lead">I build gameplay systems: melee combat, lock-on, enemy AI and interaction. I write them in C++ and hook them up in Unreal. I have a BSc in Computer Science and I'm now studying Creative Media &amp; Game Technologies (programming) at BUas.</p>
+      <div class="meta"><span><b>Engine</b> UE5 · tmpl8</span><span><b>Code</b> C++ · C# · Lua · Python</span><span><b>Now</b> Year 1 · BUas</span></div>
+    </div>
+    <nav class="menu-panel" aria-label="Main menu">
+      <div class="head"><span>Main menu</span><span>v2026</span></div>
+      <ol>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+      <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd>Select</span><span><kbd>↵</kbd>Confirm</span></div>
+    </nav>
+  </div>
+</section>
+
+<section id="projects">
+  <div class="wrap">
+    <div class="sec-head"><h2>Game Projects</h2><span class="rule"></span><span class="tag">05 entries</span></div>
+    <div class="grid">
+<a class="card feature reveal" href="projects/souls-like.html">
+  <div class="media"><span class="badge">Personal project</span><video data-auto muted loop playsinline preload="none" poster="media/souls-combat.jpg" aria-label="Souls-like Prototype gameplay"><source src="media/souls-combat.mp4" type="video/mp4"></video></div>
+  <div class="body"><h3>Souls-like Prototype</h3><p>Third-person melee combat in UE5: lock-on, stamina-gated blocking, combo attacks and behaviour-tree enemies. Core systems written as C++ components.</p><ul class="tags"><li class="cpp">C++</li><li class="">UE5</li><li class="">Blueprints</li><li class="">Combat</li><li class="">AI</li></ul><span class="go">View project →</span></div>
+</a><a class="card reveal" href="projects/interaction-system.html">
+  <div class="media"><span class="badge">C++ component</span><video data-auto muted loop playsinline preload="none" poster="media/interact.jpg" aria-label="Interaction System gameplay"><source src="media/interact.mp4" type="video/mp4"></video></div>
+  <div class="body"><h3>Interaction System</h3><p>A drop-in C++ interaction component: camera line trace plus an interface, so any actor can become interactable without the player knowing its type.</p><ul class="tags"><li class="cpp">C++</li><li class="">UE5</li><li class="">Interfaces</li><li class="">Tools</li></ul><span class="go">View project →</span></div>
+</a><a class="card reveal" href="projects/island-survival.html">
+  <div class="media"><span class="badge">Course project</span><video data-auto muted loop playsinline preload="none" poster="media/island-building.jpg" aria-label="Island Survival gameplay"><source src="media/island-building.mp4" type="video/mp4"></video></div>
+  <div class="body"><h3>Island Survival</h3><p>My first UE5 project: a modular snap-to-grid building system, an inventory and a health/damage loop, built entirely in Blueprints.</p><ul class="tags"><li class="">UE5</li><li class="">Blueprints</li><li class="">Building</li><li class="">Inventory</li></ul><span class="go">View project →</span></div>
+</a><a class="card reveal" href="projects/cs50g.html">
+  <div class="media"><span class="badge">Course · certified</span><img src="media/cs50game.jpg" alt="Harvard CS50 Game Dev" loading="lazy"></div>
+  <div class="body"><h3>Harvard CS50 Game Dev</h3><p>Harvard's CS50 Introduction to Game Development: extending classic games (Flappy Bird, Match-3, Angry Birds, Zelda-likes) in Lua/LÖVE and C#/Unity.</p><ul class="tags"><li class="">Lua</li><li class="">LÖVE 2D</li><li class="">C#</li><li class="">Unity</li></ul><span class="go">View project →</span></div>
+</a><div class="card wip reveal">
+  <div class="media"><span class="badge">In development</span><div class="nosignal">No signal · coming soon</div></div>
+  <div class="body"><h3>Metal Slug Vertical Slice</h3><p>A Metal Slug 1 slice in plain C++ on BUas's tmpl8 template: no engine, my own sprite animation, collision and game loop. Code goes up on GitHub once the block is handed in.</p><ul class="tags"><li class="cpp">C++</li><li>tmpl8</li><li>2D</li><li>No engine</li></ul></div>
+</div>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap">
+    <div class="sec-head"><h2>About</h2><span class="rule"></span></div>
+    <div class="about">
+      <div class="reveal">
+        <p>Hi, I'm Cris. I've wanted to make games since I was a kid, and these days I focus on the programming side: the systems that make a game feel good to play. I like taking a mechanic like blocking or lock-on, working out exactly how it should behave, and building it as a clean, reusable component.</p>
+        <p>My Computer Science degree covered AI, human-computer interaction and offensive security, so I care about performance and systems, and I don't just stop once something works. I'm now at Breda University of Applied Sciences doing Creative Media &amp; Game Technologies on the programming track, where I write C++ without an engine as well as in Unreal.</p>
+        <p>I also make tutorial videos and like helping other people learn. If you want to talk about gameplay programming, get in touch.</p>
+      </div>
+      <dl class="stats reveal">
+        <div class="stat"><dt>Studying</dt><dd>CMGT, Programming · BUas</dd></div>
+        <div class="stat"><dt>Degree</dt><dd>BSc Computer Science</dd></div>
+        <div class="stat"><dt>Focus</dt><dd>Combat · AI · Gameplay systems</dd></div>
+        <div class="stat"><dt>Languages</dt><dd>C++ · C# · Lua · Python</dd></div>
+        <div class="stat"><dt>Tools</dt><dd>Unreal Engine 5 · Unity · Git · Visual Studio</dd></div>
+        <div class="stat"><dt>Based in</dt><dd>Breda, Netherlands</dd></div>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section id="contact">
+  <div class="wrap">
+    <div class="sec-head"><h2>Contact</h2><span class="rule"></span></div>
+    <div class="contact reveal">
+      <div>
+        <h3>Press start<br>to get in touch</h3>
+        <p>Always happy to talk gameplay programming, and I'm looking ahead to internships at Dutch studios. Email is the fastest way to reach me.</p>
+      </div>
+      <div>
+        <a class="btn mail" href="mailto:cristianmaluswork1@gmail.com">✉ cristianmaluswork1@gmail.com</a>
+        <div class="links">
+          <a class="btn ghost" href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn ghost" href="https://www.linkedin.com/in/malus-cristian" target="_blank" rel="noopener">LinkedIn</a>
+          <a class="btn ghost" href="https://www.youtube.com/watch?v=rbKVEbena0s&list=PLCuQlNwaqH6VEkjm8QHpthL2kWzacf-Vn" target="_blank" rel="noopener">YouTube</a>
+          <a class="btn ghost" href="files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé (PDF)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Malus Cristian Ionut</span>
+    <span><a href="mailto:cristianmaluswork1@gmail.com">cristianmaluswork1@gmail.com</a> · <a href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</footer>
+<script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Island Survival | Cris Malus</title>
+<meta name="description" content="My first UE5 project: a modular snap-to-grid building system, an inventory and a health/damage loop, built entirely in Blueprints.">
+<meta property="og:title" content="Island Survival | Cris Malus">
+<meta property="og:description" content="My first UE5 project: a modular snap-to-grid building system, an inventory and a health/damage loop, built entirely in Blueprints.">
+<meta name="theme-color" content="#0c0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="pip"></span>Cris Malus</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="navlist">Menu</button>
+    <ul id="navlist">
+      <li><a class="link" href="../index.html#projects">Projects</a></li>
+      <li><a class="link" href="../index.html#about">About</a></li>
+      <li><a class="link" href="../index.html#contact">Contact</a></li>
+      <li><a class="link cv" href="../files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+    </ul>
+  </div>
+</header>
+<main>
+
+<div class="p-hero">
+  <div class="wrap">
+    <a class="back" href="../index.html#projects">← Back to projects</a>
+    <h1>Island Survival</h1>
+    <p class="lead">My first Unreal Engine 5 project, built solo while following an online course. The goal was the foundation of a survival game: building, inventory and a health loop, and learning how to structure gameplay logic in Blueprints.</p>
+    <dl class="specs"><div><dt>Type</dt><dd>Online course project</dd></div><div><dt>Engine</dt><dd>Unreal Engine 5</dd></div><div><dt>Language</dt><dd>Blueprints</dd></div><div><dt>Role</dt><dd>Gameplay programmer (solo)</dd></div></dl>
+    <div class="trailer"><iframe src="https://www.youtube-nocookie.com/embed/Y7aMY96TTPQ" title="Island Survival gameplay video" loading="lazy" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+  </div>
+</div>
+<div class="wrap">
+<section class="feature-block reveal"><div class="top"><div><span class="idx">01</span><h2>Modular building</h2><p>Players place walls, floors, ceilings, windows and doors on a grid or free-form, with rotation and snapping. Traces check placement in real time and a ghost mesh shows whether a piece is valid. The system respects collision and terrain slope, and enforces structural order: no roof without walls.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/island-building.jpg" aria-label="Modular building in action"><source src="../media/island-building.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/buildingpreview.jpg"><img src="../media/buildingpreview.jpg" alt="Building preview Blueprint" loading="lazy"></a><a href="../media/buildmode.jpg"><img src="../media/buildmode.jpg" alt="Build mode Blueprint" loading="lazy"></a></div></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">02</span><h2>Inventory</h2><p>Items can be picked up, stored and managed in slots that update dynamically, with an inventory UI that opens and closes over gameplay.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/island-inventory.jpg" aria-label="Inventory in action"><source src="../media/island-inventory.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/opencloseinventory.jpg"><img src="../media/opencloseinventory.jpg" alt="Open/close inventory" loading="lazy"></a><a href="../media/pickup-items.jpg"><img src="../media/pickup-items.jpg" alt="Picking up items" loading="lazy"></a></div></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">03</span><h2>Health & damage</h2><p>Tracks current and max health, applies damage from enemies or the environment, supports healing, updates the UI and triggers a death state at zero. It was designed so armour or other stats could be added later without changing the core.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/island-health.jpg" aria-label="Health & damage in action"><source src="../media/island-health.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/damage-player.jpg"><img src="../media/damage-player.jpg" alt="Damage Blueprint" loading="lazy"></a><a href="../media/stats-system.jpg"><img src="../media/stats-system.jpg" alt="Stats system" loading="lazy"></a></div></section>
+<div class="lessons reveal"><h2>What I learned</h2><p>Planning systems like the inventory and building before implementing them saved a lot of rework. Small touches like placement feedback made a big difference to how the game felt. Working solo meant covering programming, design and debugging, and taught me to break big systems into small parts I could test one at a time.</p></div>
+<div class="next"><a class="btn ghost" href="interaction-system.html">← Interaction System</a><a class="btn" href="cs50g.html">Harvard CS50 Game Dev →</a></div></div></main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Malus Cristian Ionut</span>
+    <span><a href="mailto:cristianmaluswork1@gmail.com">cristianmaluswork1@gmail.com</a> · <a href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</footer>
+<script src="../main.js"></script>
+</body>
+</html>
