@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metal Slug Vertical Slice | Cris Malus</title>
+<meta name="description" content="A playable slice of Metal Slug&#x27;s first mission in plain C++ with no engine: two-track sprite animation, tile collision, a ground-anchored camera, two enemy types and pixel-perfect hits.">
+<meta property="og:title" content="Metal Slug Vertical Slice | Cris Malus">
+<meta property="og:description" content="A playable slice of Metal Slug&#x27;s first mission in plain C++ with no engine: two-track sprite animation, tile collision, a ground-anchored camera, two enemy types and pixel-perfect hits.">
+<meta name="theme-color" content="#0c0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><span class="pip"></span>Cris Malus</a>
+    <button class="menu-btn" aria-expanded="false" aria-controls="navlist">Menu</button>
+    <ul id="navlist">
+      <li><a class="link" href="../index.html#projects">Projects</a></li>
+      <li><a class="link" href="../index.html#about">About</a></li>
+      <li><a class="link" href="../index.html#contact">Contact</a></li>
+      <li><a class="link cv" href="../files/Cristian-Malus-CV.pdf" target="_blank" rel="noopener">Résumé</a></li>
+    </ul>
+  </div>
+</header>
+<main>
+
+<div class="p-hero">
+  <div class="wrap">
+    <a class="back" href="../index.html#projects">← Back to projects</a>
+    <h1>Metal Slug Vertical Slice</h1>
+    <p class="lead">A playable slice of Metal Slug's first mission, written in plain C++ for my Year 1, Block A assignment at BUas. There is no engine underneath: the tmpl8 template gives me a window, a pixel buffer and a basic sprite blit, and the animation, collision, camera, enemies and game flow are built on top of that. It runs from title screen to level-complete, with a HUD, lives, score, a 12-round magazine with a reload, two enemy types and prisoners to rescue.</p>
+    <dl class="specs"><div><dt>Type</dt><dd>BUas · Year 1, Block A</dd></div><div><dt>Engine</dt><dd>None (tmpl8 template)</dd></div><div><dt>Language</dt><dd>C++</dd></div><div><dt>Role</dt><dd>Programmer (solo)</dd></div></dl>
+    <div class="trailer"><video controls playsinline preload="metadata" poster="../media/ms-cover.jpg" aria-label="Metal Slug Vertical Slice full playthrough"><source src="../media/ms-full.mp4" type="video/mp4"></video></div>
+    <div class="shots"><a href="../media/ms-cover.jpg"><img src="../media/ms-cover.jpg" alt="Firefight with a rebel rifleman in front of the wrecked tank" loading="lazy"></a><a href="../media/ms-jungle.jpg"><img src="../media/ms-jungle.jpg" alt="Start of the level with the HUD" loading="lazy"></a></div>
+    <p class="note">Metal Slug, its characters and its artwork belong to SNK. This is a non-commercial student recreation for a university assignment; the code is my own.</p>
+  </div>
+</div>
+<div class="wrap">
+<section class="feature-block reveal"><div class="top"><div><span class="idx">01</span><h2>Two-track animation</h2><p>Marco is drawn as two sprites, legs and torso. The legs track follows movement (idle, walk, jump, crouch, crawl) and the body track follows actions (shoot, reload), so he can fire while walking or in mid-air without a separate sheet for every combination. When no action is playing, the body picks up the legs' frame and timer so the two halves stay in step.</p><p>Joining the halves is measured rather than guessed. At load, <code>Animation::Load</code> scans each legs frame for its first row of pixels, the waistline, and stores how far to lift the torso above it. The somersault jump is the exception: the hip stops being a horizontal line, so those six frames use hand-tuned offsets instead.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-anim.jpg" aria-label="Two-track animation in action"><source src="../media/ms-anim.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/ms-sheets.png"><img src="../media/ms-sheets.png" alt="Body and legs sprite sheets, and the two drawn together" loading="lazy"></a></div><details class="code"><summary><span class="file">Player.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Player::UpdateAnimation( float dt, BulletPool&amp; bullets )
+{
+	const bool moving = Moving();
+
+	PlayerState wantLegs;
+	if (!m_grounded)  wantLegs = JUMP;                        // cannot crouch in mid-air
+	else if (m_down)  wantLegs = moving ? CRAWL : CROUCH;
+	else              wantLegs = moving ? WALK : IDLE;
+
+	// Only reset the frame when the state actually changes, or the
+	// animation restarts every frame and appears frozen.
+	if (wantLegs != m_legsState) { m_legsState = wantLegs; m_legsFrame = 0; m_legsTimer = 0; }
+
+	if (!m_bodyBusy)
+	{
+		// With no action playing the body follows the legs, picking up
+		// their playback position rather than snapping back to zero.
+		PlayerState wantBody = m_legsState;
+		if (wantBody != m_bodyState)
+		{
+			m_bodyState = wantBody;
+			m_bodyFrame = m_legsFrame;
+			m_bodyTimer = m_legsTimer;
+		}
+	}
+
+	// bodyBusy is what limits the fire rate to one shot per animation.
+	if (!m_bodyBusy &amp;&amp; m_fire &amp;&amp; m_ammo &gt;0)
+	{
+
+		m_bodyState = Crouching() ? CROUCH_SHOOT : SHOOT;
+		m_bodyFrame = 0; m_bodyTimer = 0; m_bodyBusy = true;
+		Fire( bullets );
+	}
+
+	if (!m_bodyBusy &amp;&amp; m_ammo == 0)
+	{
+		m_bodyState = RELOAD;
+		m_bodyFrame = 0; m_bodyTimer = 0; m_bodyBusy = true;
+	}
+	const Animation&amp; la = m_anims[m_legsState];
+	m_legsTimer += dt;
+	while (m_legsTimer &gt;= 1.0f / la.Fps())
+	{
+		// Subtract rather than zero, so leftover time carries over.
+		m_legsTimer -= 1.0f / la.Fps();
+		if (la.Loops()) m_legsFrame = (m_legsFrame + 1) % la.Frames();
+		else if (m_legsFrame &lt; la.Frames() - 1) m_legsFrame++;
+	}
+
+	const Animation&amp; ba = m_anims[m_bodyState];
+	m_bodyTimer += dt;
+	while (m_bodyTimer &gt;= 1.0f / ba.Fps())
+	{
+		m_bodyTimer -= 1.0f / ba.Fps();
+		if (ba.Loops()) m_bodyFrame = (m_bodyFrame + 1) % ba.Frames();
+		else if (m_bodyFrame &lt; ba.Frames() - 1) m_bodyFrame++;
+		// A non-looping animation with nowhere left to go is a finished action.
+		else
+		{
+			if (m_bodyState == RELOAD) m_ammo = MAG_SIZE;
+			m_bodyBusy = false;
+		}
+
+	}
+}
+
+void Player::Draw( Surface* screen, const Camera&amp; cam ) const
+{
+	const Animation&amp; la = m_anims[m_legsState];
+	const Animation&amp; ba = m_anims[m_bodyState];
+
+	const int x = cam.ToScreenX( m_x ), y = cam.ToScreenY( m_y );
+
+	// Mirroring artwork inside its cell moves where the character sits
+	// in that cell; this puts it back.
+	const int flipX = m_facingRight ? 0 : -16 * SCALE;
+
+	const int lf = la.LegsFrames() ? m_legsFrame % la.LegsFrames() : 0;
+
+	if (la.HasLegs())
+	{
+		Sprite* legs = la.Legs( m_facingRight );
+		legs-&gt;SetFrame( lf );
+		legs-&gt;Draw( screen, x + flipX, y );
+	}
+
+	Sprite* body = ba.Body( m_facingRight );
+	body-&gt;SetFrame( m_bodyFrame );
+
+	// When both halves come from the same animation the hand-tuned
+	// pairLift applies; when they have come apart -- shooting while
+	// jumping -- the generic measured lift is the right one.
+	const bool paired  = (m_bodyState == m_legsState);
+	const int  useLift = paired ? la.PairLift( lf ) : la.Lift( lf );
+	const int  useOffX = paired ? la.OffX( lf ) : 0;
+	const int  bodyDX  = (m_facingRight ? useOffX : -useOffX) * SCALE;
+
+	body-&gt;Draw( screen, x + flipX + bodyDX, y - (useLift + ba.BodyLift()) * SCALE );
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">02</span><h2>Tile collision painted in a PNG</h2><p>The level's collision is a 260 × 15 image where one pixel is one 16-unit tile: white is solid, green is a one-way platform, black is empty. Changing the level geometry means repainting a pixel, not recompiling.</p><p>Movement resolves one axis at a time: move on X and fix X, then apply gravity, move on Y and fix Y. After a diagonal move an overlap can't tell you whether it was a wall or a floor. One-way platforms only catch Marco if his feet were above the surface before the move, and a one-tile step-up lets him walk over small rises instead of stopping dead.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-tiles.jpg" aria-label="Jumping between one-way platforms"><source src="../media/ms-tiles.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><div class="shots"><a href="../media/ms-collision.jpg"><img src="../media/ms-collision.jpg" alt="Collision tiles drawn over the level art: red is solid, green is one-way" loading="lazy"></a></div><details class="code"><summary><span class="file">Player.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Player::UpdateMovement( float dt, const Level&amp; level )
+{
+	const bool  crouching  = Crouching();
+	const float MOVE_SPEED = crouching ? CRAWL_SPEED : WALK_SPEED;
+	const bool  moving     = Moving();
+	const float boxTop     = crouching ? BOX_TOP_CR : BOX_TOP;
+
+	float vx = 0;
+	if (m_left)  vx -= MOVE_SPEED;
+	if (m_right) vx += MOVE_SPEED;
+	m_x += vx * dt;
+	if (m_x &lt; MIN_X) m_x = MIN_X;
+	if (m_x &gt; MAX_X) m_x = MAX_X;
+
+	// --- resolve x against the tiles ---
+	if (vx != 0)
+	{
+		// Only the leading edge can hit something.
+		const float edge = (vx &gt; 0) ? m_x + 31 : m_x + 16;
+
+		bool hit = false;
+		for (float y = m_y + boxTop; y &lt; m_y + 48; y += Level::TILE)
+			if (level.TileAt( edge, y ) == 1) hit = true;
+		if (level.TileAt( edge, m_y + 47 ) == 1) hit = true;
+
+		if (hit)
+		{
+			bool stepped = false;
+
+			// Step up, but only on the ground and only by one tile --
+			// otherwise this becomes a way to climb walls.
+			if (m_grounded)
+			{
+				const int   obsRow = (int)((m_y + 47) / Level::TILE);
+				const float obsTop = (float)(obsRow * Level::TILE);
+				const float newY   = obsTop - 48;
+
+				bool clear = true;
+				for (float y = newY + boxTop; y &lt; newY + 48; y += Level::TILE)
+					if (level.TileAt( edge, y ) == 1) clear = false;
+				if (level.TileAt( edge, newY + 47 ) == 1) clear = false;
+
+				if (clear &amp;&amp; m_y - newY &lt;= Level::TILE) { m_y = newY; stepped = true; }
+			}
+
+			if (!stepped)
+			{
+				const int tcol = (int)(edge / Level::TILE);
+				if (vx &gt; 0) m_x = (float)(tcol * Level::TILE) - 32;
+				else        m_x = (float)((tcol + 1) * Level::TILE) - 16;
+			}
+		}
+	}
+
+	// --- gravity, then resolve y ---
+	m_vy += GRAVITY * dt;
+	m_y  += m_vy * dt;
+
+	m_grounded = false;
+	const float feet     = m_y + 48;
+	const float prevFeet = feet - m_vy * dt;   // where the feet were before this move
+	const float boxL     = m_x + 16;
+	const float boxR     = m_x + 31;
+
+	if (m_vy &gt;= 0)
+	{
+		const unsigned char a = level.TileAt( boxL, feet );
+		const unsigned char b = level.TileAt( boxR, feet );
+		const float tileTop = (float)((int)(feet / Level::TILE) * Level::TILE);
+
+		bool land = (a == 1 || b == 1);
+
+		// One-way tiles only stop you if the feet were at or above the
+		// surface beforehand. The tolerance is there because both values
+		// come out of float arithmetic and can differ by a hair.
+		if (!land &amp;&amp; (a == 2 || b == 2) &amp;&amp; prevFeet &lt;= tileTop + 1.0f) land = true;
+
+		if (land) { m_y = tileTop - 48; m_vy = 0; m_grounded = true; }
+	}
+
+	// Only update facing while actually moving, so releasing a key
+	// leaves him facing the way he was.
+	if (moving) m_facingRight = (vx &gt; 0);
+}</code></pre></details><details class="code"><summary><span class="file">Level.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Level::Load( const char* tilemapFile )
+{
+	Surface* tm = new Surface( tilemapFile );
+
+	for (int i = 0; i &lt; COLS * ROWS; i++)
+	{
+		const uint c = tm-&gt;pixels[i];
+		const int r = (c &gt;&gt; 16) &amp; 255, g = (c &gt;&gt; 8) &amp; 255, b = c &amp; 255;
+
+		// Classified by the shape of the colour rather than an exact match,
+		// so a hand-painted tile that is slightly off still loads.
+		if (g &gt; 150 &amp;&amp; r &lt; 100 &amp;&amp; b &lt; 100)      m_tiles[i] = 2;   // green -&gt; one-way
+		else if (r &gt; 200 &amp;&amp; g &gt; 200 &amp;&amp; b &gt; 200) m_tiles[i] = 1;   // white -&gt; solid
+		else                                    m_tiles[i] = 0;   // black -&gt; empty
+	}
+
+	delete tm;
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">03</span><h2>A camera that ignores jumps</h2><p>Horizontally the camera just centres on Marco. Vertically it tracks the height of the ground he last stood on, not Marco himself. In the air that value doesn't change, so a jump never moves the view.</p><p>On landing, the anchor only moves if the ground height changed by more than 24 units: a hop onto a single 16-unit tile is ignored, a real two-tile climb is followed. The view then eases toward the new height at a fixed rate per second, and hard limits keep Marco in frame whatever the anchor asks for.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-camera.jpg" aria-label="Camera following a climb but not the jumps"><source src="../media/ms-camera.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><details class="code"><summary><span class="file">Camera.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Camera::Follow( float targetX, float targetY, bool grounded, float dt )
+{
+	// Horizontally the view centres on the target. That depends on nothing
+	// but the current position, so it is recomputed outright every frame.
+	m_x = targetX - VIEW_W / 2;
+
+	// --- vertical ---
+	//
+	// The framing is built from the height of the ground the target was
+	// last standing on, not from where the target is now. Two consequences,
+	// both wanted:
+	//
+	//   in the air   m_groundY stops changing, so the view does not move
+	//                at all during a jump
+	//   on landing   only a change bigger than SETTLE moves the anchor, so
+	//                small platforms are ignored and real climbs are not
+	//
+	// The first sample is taken outright: at startup there is no previous
+	// ground to ease away from, so easing would begin from an arbitrary
+	// place and slide into position on frame one.
+	if (grounded)
+	{
+		if (!m_haveGround)
+		{
+			// First time on solid ground: take the framing outright. There
+			// is no previous view to ease away from, and easing from the
+			// default would visibly slide into place on the first frame.
+			m_groundY = targetY;
+			m_y = targetY - REST_OFFSET;
+			m_haveGround = true;
+		}
+		else if (fabsf( targetY - m_groundY ) &gt; SETTLE)
+		{
+			// Adopt the new height outright. Stopping SETTLE short of it --
+			// the way a deadzone on a tracked value would -- leaves the
+			// anchor permanently offset, and by a sign that depends on
+			// which way he last moved. The tolerance decides WHETHER to
+			// follow, not how far.
+			m_groundY = targetY;
+		}
+	}
+
+	// Nothing to aim at until he has stood somewhere, so the view is left
+	// alone rather than being pulled toward a ground height of zero.
+	if (m_haveGround)
+	{
+		// Ease toward the resting frame rather than snapping to it.
+		// Multiplying by dt keeps the rate in units per second; the clamp
+		// stops a long frame producing a step bigger than the gap left.
+		const float want = m_groundY - REST_OFFSET;
+		float t = dt * CATCH_UP;
+		if (t &gt; 1.0f) t = 1.0f;
+		m_y += (want - m_y) * t;
+	}
+
+	// Whatever the anchor asked for, the target stays in frame. The
+	// original deadzone was quietly doing two jobs -- smoothing small
+	// movement, and guaranteeing the target stayed on screen -- and
+	// replacing it took the second one out with the first.
+	if (m_y &lt; targetY - DEAD_BOT) m_y = targetY - DEAD_BOT;
+	if (m_y &gt; targetY - DEAD_TOP) m_y = targetY - DEAD_TOP;
+
+	// Keep the view inside the rectangle it was given. The world bounds
+	// come last, so they always win over the framing.
+	if (m_x &lt; m_minX)          m_x = m_minX;
+	if (m_x &gt; m_maxX - VIEW_W) m_x = m_maxX - VIEW_W;
+	if (m_y &lt; m_minY)          m_y = m_minY;
+	if (m_y &gt; m_maxY - VIEW_H) m_y = m_maxY - VIEW_H;
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">04</span><h2>Two enemies, one base class</h2><p><code>Enemy</code> is an abstract base that owns what every enemy shares: position, health, animation state, hitbox and <code>HoldRange()</code>, which walks toward or away from the player to stay inside a preferred firing band and refuses to step into walls or off ledges. The band has width on purpose. A single threshold would have an enemy flipping between running and shooting every frame.</p><p>The rifleman keeps his distance and gives ground when Marco gets close. The shield rebel only advances, and overrides <code>TakeDamage()</code>: bullets from the front are absorbed unless he is in the back half of his own shooting animation, where the sprite shows the shield lowered. That gap is the only way to hit him head-on.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-enemies.jpg" aria-label="Rifleman and shield rebel"><source src="../media/ms-enemies.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><details class="code"><summary><span class="file">Enemy.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">Enemy::Approach Enemy::HoldRange( float dt, const Level&amp; level, const Player&amp; player )
+{
+	const float dx = player.X() - m_x;
+
+	// Face the player by default. The one case that overrides this is
+	// giving ground, below.
+	m_facingRight = (dx &gt; 0);
+
+	const float dist = fabsf( dx );
+	if (dist &gt; m_wakeRange) return ASLEEP;
+
+	// Too far to shoot without doing it from off screen: close the gap.
+	if (dist &gt; m_fireMax)
+	{
+		const float step = (dx &gt; 0 ? m_walkSpeed : -m_walkSpeed) * dt;
+		if (TryMove( level, step )) return CLOSING;
+
+		// A wall or a ledge in the way. Nothing else to try, so fight
+		// from where he is rather than walking on the spot forever.
+		return IN_RANGE;
+	}
+
+	// Uncomfortably close, for an enemy that minds.
+	if (m_backsOff &amp;&amp; dist &lt; m_fireMin)
+	{
+		const float step = (dx &gt; 0 ? -m_walkSpeed : m_walkSpeed) * dt;
+		if (TryMove( level, step ))
+		{
+			// Turn and run, rather than aiming one way while the legs
+			// carry him the other. There is only one run animation and
+			// it plays forwards, so the sprite has to face the way it
+			// is actually travelling.
+			m_facingRight = (step &gt; 0);
+			return BACKING;
+		}
+
+		// Cornered. Stand and shoot instead of grinding against the wall.
+		return IN_RANGE;
+	}
+
+	return IN_RANGE;
+}</code></pre></details><details class="code"><summary><span class="file">ShieldRebel.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">bool ShieldRebel::ShieldUp() const
+{
+	if (m_state != SHOOT) return true;
+	return m_frame &lt; SHIELD_DOWN_FRAME;
+}
+
+void ShieldRebel::TakeDamage( int amount, bool movingRight )
+{
+	// movingRight describes the bullet. One travelling right arrived from
+	// the left, so it strikes his left side; he faces left when Marco is
+	// to his left. The two disagreeing means it hit him from the front.
+	const bool fromFront = (movingRight != m_facingRight);
+
+	if (fromFront &amp;&amp; ShieldUp()) return;      // clang, and nothing else
+
+	Enemy::TakeDamage( amount, movingRight );
+}</code></pre></details></section>
+<section class="feature-block reveal"><div class="top"><div><span class="idx">05</span><h2>Bullet pools and pixel-perfect hits</h2><p>Bullets are never allocated during play. They live in a fixed pool of 32 slots: firing revives a dead slot and a hit clears a flag. Player and enemy bullets are two separate pools, so a bullet can never hit its own side and no owner flag is needed.</p><p>Touching an enemy uses a two-phase test. A cheap box check rejects almost every pair. Only when the boxes overlap does it scan the rectangle where they intersect for a pixel that is solid in both frames, using the same transparency test the draw call uses, so nothing can collide on a pixel that isn't drawn.</p><p>Prisoners use the plain box test: walking into a tied one frees him for points, and he salutes and fades out.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-pow.jpg" aria-label="Freeing a prisoner and a firefight"><source src="../media/ms-pow.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><details class="code"><summary><span class="file">collision.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">static bool SolidAt(const SpriteMask&amp; m, int x, int y)
+{
+	const int lx = x - m.x;
+	const int ly = y - m.y;
+
+	if (lx &lt; 0 || ly &lt; 0 || lx &gt;= m.frameW || ly &gt;= m.frameH) return false;
+
+	const unsigned int c = m.pixels[ly * m.stride + m.frame * m.frameW + lx];
+	return (c &amp; 0xffffff) != 0;
+}
+
+bool Overlaps(const SpriteMask&amp; a, const SpriteMask&amp; b)
+{
+	// Nothing to test against -- an enemy mid-state-change may have no sheet.
+	if (!a.pixels || !b.pixels) return false;
+
+	// --- broad phase ---
+	const AABB ba = BoxOf(a);
+	const AABB bb = BoxOf(b);
+	if (!Overlaps(ba, bb)) return false;
+
+	// --- narrow phase ---
+	const AABB r = Intersection(ba, bb);
+
+	for (int y = (int)r.y1; y &lt;= (int)r.y2; y++)
+		for (int x = (int)r.x1; x &lt;= (int)r.x2; x++)
+			if (SolidAt(a, x, y) &amp;&amp; SolidAt(b, x, y))
+				return true;   // one overlapping pixel is a hit; no need to count them
+
+	return false;
+}</code></pre></details><details class="code"><summary><span class="file">BulletPool.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void BulletPool::Fire( float x, float y, bool toRight )
+{
+	for (int i = 0; i &lt; MAX; i++)
+	{
+		if (m_bullets[i].alive) continue;
+
+		m_bullets[i].x = x;
+		m_bullets[i].y = y;
+		// Direction is decided once, here. Turning around later does not
+		// affect bullets already in the air.
+		m_bullets[i].vx = toRight ? SPEED : -SPEED;
+		m_bullets[i].alive = true;
+		return;                 // one bullet, not every free slot
+	}
+}
+
+void BulletPool::Update( float dt, const Level&amp; level )
+{
+	for (int i = 0; i &lt; MAX; i++)
+	{
+		if (!m_bullets[i].alive) continue;
+
+		m_bullets[i].x += m_bullets[i].vx * dt;
+
+		// Retire bullets that leave the level or hit solid ground.
+		// Without this the pool fills up and firing stops working.
+		if (m_bullets[i].x &lt; 0 || m_bullets[i].x &gt; Level::WORLD_W) m_bullets[i].alive = false;
+		if (level.TileAt( m_bullets[i].x, m_bullets[i].y ) == 1)   m_bullets[i].alive = false;
+	}
+}</code></pre></details></section>
+<div class="lessons reveal"><h2>What I learned</h2><p>Working without an engine meant every convenience was a decision I had to make myself. Keeping gameplay in world units and converting to screen pixels in exactly one place made the camera cheap to add. Deriving values instead of storing them (hitboxes from position, score from the kill and prisoner counters, grounded recomputed every frame) removed a whole class of out-of-sync bugs. If I picked it up again, the first fix would be the placement maths duplicated between <code>Player::Draw</code> and <code>Player::Mask</code>, which should be one shared helper.</p></div>
+<div class="next"><a class="btn ghost" href="souls-like.html">← Souls-like Prototype</a><a class="btn" href="interaction-system.html">Interaction System →</a></div></div></main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Malus Cristian Ionut</span>
+    <span><a href="mailto:cristianmaluswork1@gmail.com">cristianmaluswork1@gmail.com</a> · <a href="https://github.com/xtr3mem8" target="_blank" rel="noopener">GitHub</a></span>
+  </div>
+</footer>
+<script src="../main.js"></script>
+</body>
+</html>
