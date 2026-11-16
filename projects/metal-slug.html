@@ -48,14 +48,10 @@
 	else if (m_down)  wantLegs = moving ? CRAWL : CROUCH;
 	else              wantLegs = moving ? WALK : IDLE;
 
-	// Only reset the frame when the state actually changes, or the
-	// animation restarts every frame and appears frozen.
 	if (wantLegs != m_legsState) { m_legsState = wantLegs; m_legsFrame = 0; m_legsTimer = 0; }
 
 	if (!m_bodyBusy)
 	{
-		// With no action playing the body follows the legs, picking up
-		// their playback position rather than snapping back to zero.
 		PlayerState wantBody = m_legsState;
 		if (wantBody != m_bodyState)
 		{
@@ -68,7 +64,6 @@
 	// bodyBusy is what limits the fire rate to one shot per animation.
 	if (!m_bodyBusy &amp;&amp; m_fire &amp;&amp; m_ammo &gt;0)
 	{
-
 		m_bodyState = Crouching() ? CROUCH_SHOOT : SHOOT;
 		m_bodyFrame = 0; m_bodyTimer = 0; m_bodyBusy = true;
 		Fire( bullets );
@@ -102,7 +97,6 @@
 			if (m_bodyState == RELOAD) m_ammo = MAG_SIZE;
 			m_bodyBusy = false;
 		}
-
 	}
 }
 
@@ -113,8 +107,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 
 	const int x = cam.ToScreenX( m_x ), y = cam.ToScreenY( m_y );
 
-	// Mirroring artwork inside its cell moves where the character sits
-	// in that cell; this puts it back.
 	const int flipX = m_facingRight ? 0 : -16 * SCALE;
 
 	const int lf = la.LegsFrames() ? m_legsFrame % la.LegsFrames() : 0;
@@ -129,9 +121,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 	Sprite* body = ba.Body( m_facingRight );
 	body-&gt;SetFrame( m_bodyFrame );
 
-	// When both halves come from the same animation the hand-tuned
-	// pairLift applies; when they have come apart -- shooting while
-	// jumping -- the generic measured lift is the right one.
 	const bool paired  = (m_bodyState == m_legsState);
 	const int  useLift = paired ? la.PairLift( lf ) : la.Lift( lf );
 	const int  useOffX = paired ? la.OffX( lf ) : 0;
@@ -168,8 +157,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 		{
 			bool stepped = false;
 
-			// Step up, but only on the ground and only by one tile --
-			// otherwise this becomes a way to climb walls.
 			if (m_grounded)
 			{
 				const int   obsRow = (int)((m_y + 47) / Level::TILE);
@@ -211,16 +198,11 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 
 		bool land = (a == 1 || b == 1);
 
-		// One-way tiles only stop you if the feet were at or above the
-		// surface beforehand. The tolerance is there because both values
-		// come out of float arithmetic and can differ by a hair.
 		if (!land &amp;&amp; (a == 2 || b == 2) &amp;&amp; prevFeet &lt;= tileTop + 1.0f) land = true;
 
 		if (land) { m_y = tileTop - 48; m_vy = 0; m_grounded = true; }
 	}
 
-	// Only update facing while actually moving, so releasing a key
-	// leaves him facing the way he was.
 	if (moving) m_facingRight = (vx &gt; 0);
 }</code></pre></details><details class="code"><summary><span class="file">Level.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Level::Load( const char* tilemapFile )
 {
@@ -231,8 +213,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 		const uint c = tm-&gt;pixels[i];
 		const int r = (c &gt;&gt; 16) &amp; 255, g = (c &gt;&gt; 8) &amp; 255, b = c &amp; 255;
 
-		// Classified by the shape of the colour rather than an exact match,
-		// so a hand-painted tile that is slightly off still loads.
 		if (g &gt; 150 &amp;&amp; r &lt; 100 &amp;&amp; b &lt; 100)      m_tiles[i] = 2;   // green -&gt; one-way
 		else if (r &gt; 200 &amp;&amp; g &gt; 200 &amp;&amp; b &gt; 200) m_tiles[i] = 1;   // white -&gt; solid
 		else                                    m_tiles[i] = 0;   // black -&gt; empty
@@ -242,68 +222,33 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 }</code></pre></details></section>
 <section class="feature-block reveal"><div class="top"><div><span class="idx">03</span><h2>A camera that ignores jumps</h2><p>Horizontally the camera just centres on Marco. Vertically it tracks the height of the ground he last stood on, not Marco himself. In the air that value doesn't change, so a jump never moves the view.</p><p>On landing, the anchor only moves if the ground height changed by more than 24 units: a hop onto a single 16-unit tile is ignored, a real two-tile climb is followed. The view then eases toward the new height at a fixed rate per second, and hard limits keep Marco in frame whatever the anchor asks for.</p></div><div class="frame"><video data-auto muted loop playsinline preload="none" poster="../media/ms-camera.jpg" aria-label="Camera following a climb but not the jumps"><source src="../media/ms-camera.mp4" type="video/mp4"></video><span class="cap">In-game</span></div></div><details class="code"><summary><span class="file">Camera.cpp</span><span class="lang">C++</span></summary><pre><code class="cpp">void Camera::Follow( float targetX, float targetY, bool grounded, float dt )
 {
-	// Horizontally the view centres on the target. That depends on nothing
-	// but the current position, so it is recomputed outright every frame.
 	m_x = targetX - VIEW_W / 2;
 
-	// --- vertical ---
-	//
-	// The framing is built from the height of the ground the target was
-	// last standing on, not from where the target is now. Two consequences,
-	// both wanted:
-	//
-	//   in the air   m_groundY stops changing, so the view does not move
-	//                at all during a jump
-	//   on landing   only a change bigger than SETTLE moves the anchor, so
-	//                small platforms are ignored and real climbs are not
-	//
-	// The first sample is taken outright: at startup there is no previous
-	// ground to ease away from, so easing would begin from an arbitrary
-	// place and slide into position on frame one.
 	if (grounded)
 	{
 		if (!m_haveGround)
 		{
-			// First time on solid ground: take the framing outright. There
-			// is no previous view to ease away from, and easing from the
-			// default would visibly slide into place on the first frame.
 			m_groundY = targetY;
 			m_y = targetY - REST_OFFSET;
 			m_haveGround = true;
 		}
 		else if (fabsf( targetY - m_groundY ) &gt; SETTLE)
 		{
-			// Adopt the new height outright. Stopping SETTLE short of it --
-			// the way a deadzone on a tracked value would -- leaves the
-			// anchor permanently offset, and by a sign that depends on
-			// which way he last moved. The tolerance decides WHETHER to
-			// follow, not how far.
 			m_groundY = targetY;
 		}
 	}
 
-	// Nothing to aim at until he has stood somewhere, so the view is left
-	// alone rather than being pulled toward a ground height of zero.
 	if (m_haveGround)
 	{
-		// Ease toward the resting frame rather than snapping to it.
-		// Multiplying by dt keeps the rate in units per second; the clamp
-		// stops a long frame producing a step bigger than the gap left.
 		const float want = m_groundY - REST_OFFSET;
 		float t = dt * CATCH_UP;
 		if (t &gt; 1.0f) t = 1.0f;
 		m_y += (want - m_y) * t;
 	}
 
-	// Whatever the anchor asked for, the target stays in frame. The
-	// original deadzone was quietly doing two jobs -- smoothing small
-	// movement, and guaranteeing the target stayed on screen -- and
-	// replacing it took the second one out with the first.
 	if (m_y &lt; targetY - DEAD_BOT) m_y = targetY - DEAD_BOT;
 	if (m_y &gt; targetY - DEAD_TOP) m_y = targetY - DEAD_TOP;
 
-	// Keep the view inside the rectangle it was given. The world bounds
-	// come last, so they always win over the framing.
 	if (m_x &lt; m_minX)          m_x = m_minX;
 	if (m_x &gt; m_maxX - VIEW_W) m_x = m_maxX - VIEW_W;
 	if (m_y &lt; m_minY)          m_y = m_minY;
@@ -313,8 +258,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 {
 	const float dx = player.X() - m_x;
 
-	// Face the player by default. The one case that overrides this is
-	// giving ground, below.
 	m_facingRight = (dx &gt; 0);
 
 	const float dist = fabsf( dx );
@@ -326,8 +269,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 		const float step = (dx &gt; 0 ? m_walkSpeed : -m_walkSpeed) * dt;
 		if (TryMove( level, step )) return CLOSING;
 
-		// A wall or a ledge in the way. Nothing else to try, so fight
-		// from where he is rather than walking on the spot forever.
 		return IN_RANGE;
 	}
 
@@ -337,10 +278,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 		const float step = (dx &gt; 0 ? -m_walkSpeed : m_walkSpeed) * dt;
 		if (TryMove( level, step ))
 		{
-			// Turn and run, rather than aiming one way while the legs
-			// carry him the other. There is only one run animation and
-			// it plays forwards, so the sprite has to face the way it
-			// is actually travelling.
 			m_facingRight = (step &gt; 0);
 			return BACKING;
 		}
@@ -358,9 +295,6 @@ void Player::Draw( Surface* screen, const Camera&amp; cam ) const
 
 void ShieldRebel::TakeDamage( int amount, bool movingRight )
 {
-	// movingRight describes the bullet. One travelling right arrived from
-	// the left, so it strikes his left side; he faces left when Marco is
-	// to his left. The two disagreeing means it hit him from the front.
 	const bool fromFront = (movingRight != m_facingRight);
 
 	if (fromFront &amp;&amp; ShieldUp()) return;      // clang, and nothing else
@@ -405,8 +339,6 @@ bool Overlaps(const SpriteMask&amp; a, const SpriteMask&amp; b)
 
 		m_bullets[i].x = x;
 		m_bullets[i].y = y;
-		// Direction is decided once, here. Turning around later does not
-		// affect bullets already in the air.
 		m_bullets[i].vx = toRight ? SPEED : -SPEED;
 		m_bullets[i].alive = true;
 		return;                 // one bullet, not every free slot
@@ -421,8 +353,6 @@ void BulletPool::Update( float dt, const Level&amp; level )
 
 		m_bullets[i].x += m_bullets[i].vx * dt;
 
-		// Retire bullets that leave the level or hit solid ground.
-		// Without this the pool fills up and firing stops working.
 		if (m_bullets[i].x &lt; 0 || m_bullets[i].x &gt; Level::WORLD_W) m_bullets[i].alive = false;
 		if (level.TileAt( m_bullets[i].x, m_bullets[i].y ) == 1)   m_bullets[i].alive = false;
 	}
